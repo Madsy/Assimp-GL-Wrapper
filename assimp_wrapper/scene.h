@@ -117,7 +117,7 @@ struct Scene
 	std::map<std::string, const aiAnimation*> m_LUTAnimation;
 	//look up bone ID and Mesh ID by node. I.e aiNode* 'node' is the 'i'th bone
 	//in the 'j'th mesh.
-	std::map<const aiNode*, NodeMeshBoneIndex> m_LUTBone;
+	std::map<const aiNode*, std::vector<NodeMeshBoneIndex> > m_LUTBone;
 	//Constant/static data used by OpenGL for each mesh
 	std::vector<MeshGLData*> m_MeshData;
 	//Dynamic animation data per animation instance that changes every

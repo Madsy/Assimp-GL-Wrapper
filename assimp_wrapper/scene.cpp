@@ -160,13 +160,19 @@ void Scene::initGLBoneData(MeshGLData* gldata, int meshID)
 		//Associate bone 'i' with its node so we can later easily
 		//check if a bone needs updating. NOTE! This assumes that
 		//multiple bones can not have the same name or refer to the
-		//same node!
+        //same node!
+        //Update: Got a model where a node refer to a bone shared by several meshes
+		//m_LUTBone now refers to an array of nmbis
 		NodeMeshBoneIndex nmbi;
 		nmbi.meshIndex = meshID;
 		nmbi.boneIndex = i;
 		const aiNode* boneNode = m_Scene->mRootNode->FindNode(bone->mName);
 		assert(boneNode != 0);
-		m_LUTBone.insert(std::make_pair(boneNode, nmbi));
+		//m_LUTBone.insert(std::make_pair(boneNode, nmbi));
+		//A node which refers to a bone, can refer to a bone shared by
+		//several meshes. If several meshes share a bone, the bone can
+		//have different indices (different bone array ordering)
+		m_LUTBone[boneNode].push_back(nmbi);
 	}
 
 	assert(boneArray.size() == mesh->mNumVertices);
@@ -411,12 +417,7 @@ void AnimRenderer::drawAllObjects(unsigned int shader)
 
 		const aiMatrix4x4& c = m_Parent->m_Camera;
 		const float* cp = c[0];
-/*
-		printf("sc_camera:\n");
-		for(int k = 0; k < 4; ++k){
-			printf("%f %f %f %f\n", cp[k*4 + 0], cp[k*4 + 1], cp[k*4 + 2], cp[k*4 + 3]);
-		}
-*/		
+		
 		//Finally, bind the face indices
 		bindVBOIndices(shader, meshData->indices);
 		glDrawElements(GL_TRIANGLES, meshData->numElements, GL_UNSIGNED_INT, 0);
@@ -637,7 +638,7 @@ void AnimGLData::recursiveUpdate(aiNode* node, const aiMatrix4x4& parentMatrix)
 		aiVector3D scale;
 		aiQuaternion rotation;
 		aiMatrix4x4 scaleMat, rotMat, transMat;
-		printf("Animated node: %s at time %f\n", node->mName.C_Str(), m_Time);
+		//printf("Animated node: %s at time %f\n", node->mName.C_Str(), m_Time);
 		interpolateTranslation(nodeAnim, translation);
 		interpolateScale(nodeAnim, scale);
 		interpolateRotation(nodeAnim, rotation);
@@ -661,14 +662,22 @@ void AnimGLData::recursiveUpdate(aiNode* node, const aiMatrix4x4& parentMatrix)
 	belongs to a mesh. */
 	bool isBone = false;
 	const aiScene* sceneData = m_Scene->m_Scene;
-	std::map<const aiNode*, NodeMeshBoneIndex>::const_iterator it = m_Scene->m_LUTBone.find(node);
+	std::map<const aiNode*, std::vector<NodeMeshBoneIndex> >::const_iterator it = m_Scene->m_LUTBone.find(node);
 	isBone = (it != m_Scene->m_LUTBone.end());
 	if(isBone){
-		NodeMeshBoneIndex nmbi = it->second;
-		const aiMatrix4x4& offsetMatrix = sceneData->mMeshes[nmbi.meshIndex]->mBones[nmbi.boneIndex]->mOffsetMatrix;
-		//Update the 'nmbi.meshIndex'th mesh, bone number 'nmbi.boneIndex' 
-		//OpenGL uses one uniform array for each mesh as bone matrices
-		m_Bones[nmbi.meshIndex][nmbi.boneIndex] = globalMatrix * offsetMatrix;
+		const std::vector<NodeMeshBoneIndex>& nmbi = it->second;
+		
+		for(unsigned int i = 0; i < nmbi.size(); ++i){
+			const NodeMeshBoneIndex& idx = nmbi[i];
+			const aiMatrix4x4& offsetMatrix = sceneData->mMeshes[idx.meshIndex]->mBones[idx.boneIndex]->mOffsetMatrix;
+			aiMatrix4x4 boneMatrix = globalMatrix * offsetMatrix;
+			//Update the 'nmbi.meshIndex'th mesh, bone number 'nmbi.boneIndex' 
+			//OpenGL uses one uniform array for each mesh as bone matrices
+			//Now we support that a bone can be shared by multiple meshes
+			
+			m_Bones[idx.meshIndex][idx.boneIndex] = boneMatrix;
+		}
+		
 	}
 	for(int i = 0; i < node->mNumChildren; ++i)
 		recursiveUpdate(node->mChildren[i], globalMatrix);
