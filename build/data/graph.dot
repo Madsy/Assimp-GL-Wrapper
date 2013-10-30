@@ -1,0 +1,44 @@
+digraph assimp {
+Node_mesh_0 -> Node_mesh_0_bone_0;
+Node_mesh_0 -> Node_mesh_0_bone_1;
+Node_mesh_1 -> Node_mesh_1_bone_0;
+Node_mesh_1 -> Node_mesh_1_bone_1;
+Node_mesh_1 -> Node_mesh_1_bone_2;
+Node_mesh_1 -> Node_mesh_1_bone_3;
+Node_0 -> Node_0_0;
+Node_0 -> Node_0_1;
+Node_0 -> Node_0_2;
+Node_0_2 -> Node_0_2_0;
+Node_0_2_0 -> Node_0_2_0_0;
+Node_0_2_0_0 -> Node_0_2_0_0_0;
+Node_0_2_0 -> Node_0_2_0_1;
+Node_0_2_0_1 -> Node_0_2_0_1_0;
+Node_0_2_0_1_0 -> Node_0_2_0_1_0_0;
+Node_0 -> Node_0_3;
+Node_mesh_0 -> Node_0_3;
+Node_0_3 -> Node_mesh_1;
+
+
+
+    Node_scene_0 [label="Scene:\nNumber of meshes:     2\nNumber of lights:     1\nNumber of cameras:    1\nNumber of animations: 1\nIs scene complete? [Yes]\n"];
+    Node_mesh_0 [label="Mesh name:                     Cube.002\nNumber of vertices:            36\nNumber of vertex indices:      120\nNumber of UV maps:             1\nNumber of tangents/bitangents: 0\nNumber of bones:               2\n"];
+    Node_mesh_0_bone_0 [label="Bone name:         Bone.Bottom\nNumber of weights: 18\n"];
+    Node_mesh_0_bone_1 [label="Bone name:         Bone.Top\nNumber of weights: 18\n"];
+    Node_mesh_1 [label="Mesh name:                     Cube.002\nNumber of vertices:            540\nNumber of vertex indices:      1416\nNumber of UV maps:             1\nNumber of tangents/bitangents: 540\nNumber of bones:               4\n"];
+    Node_mesh_1_bone_0 [label="Bone name:         Bone.Right\nNumber of weights: 24\n"];
+    Node_mesh_1_bone_1 [label="Bone name:         Bone.Bottom\nNumber of weights: 246\n"];
+    Node_mesh_1_bone_2 [label="Bone name:         Bone.Top\nNumber of weights: 246\n"];
+    Node_mesh_1_bone_3 [label="Bone name:         Bone.Left\nNumber of weights: 24\n"];
+    Node_animation_0 [label="Animation name:     \nDuration (ticks):   5\nTicks per second:   1\nNumber of channels: 6\n"];
+    Node_0 [label="Name: Scene\n"];
+    Node_0_0 [label="Name: Camera\nReferences camera '0'\n"];
+    Node_0_1 [label="Name: Lamp\nReferences light '0'\n"];
+    Node_0_2 [label="Name: Armature\n"];
+    Node_0_2_0 [label="Name: Bone.Root\n"];
+    Node_0_2_0_0 [label="Name: Bone.Bottom\nReferences bone from mesh '0', bone ID '0'\n"];
+    Node_0_2_0_0_0 [label="Name: Bone.Right\nReferences bone from mesh '1', bone ID '0'\n"];
+    Node_0_2_0_1 [label="Name: Bone.003\n"];
+    Node_0_2_0_1_0 [label="Name: Bone.Left\nReferences bone from mesh '1', bone ID '3'\n"];
+    Node_0_2_0_1_0_0 [label="Name: Bone.Top\nReferences bone from mesh '0', bone ID '1'\n"];
+    Node_0_3 [label="Name: Cube_003\nReferences mesh(es) '0', '1'\n"];
+}
