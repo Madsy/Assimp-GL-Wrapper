@@ -55,13 +55,14 @@ struct AnimRenderer
 	AnimRenderer();
 	friend class AnimGLData;
 protected:
-	void drawObjectBegin(unsigned int shader, const std::string& objname);
-	void drawObjectEnd();
-	void drawAllObjects(unsigned int shader);
+	void drawBegin(unsigned int shader, int idx);
+	void drawEnd(int idx);
+
 private:
 	void setParent(AnimGLData* parent);
 	void setScene(const Scene* scene);
-	virtual void draw();
+	//virtual void draw();
+	virtual void draw(int idx);
 	int m_CurrentMesh;
 	AnimGLData* m_Parent;
 	const Scene* m_Scene;
@@ -75,7 +76,7 @@ struct AnimGLData
 	const Scene* m_Scene;
 	//pointer to the animation data (constant)
 	const aiAnimation* m_Animation;
-	AnimRenderer* m_Renderer;
+	std::map<int, AnimRenderer*> m_Renderer;
 	//2D array of uniform matrices for bones for every mesh (changes every frame)
 	std::vector<std::vector<aiMatrix4x4> > m_Bones;
 	//One worldspace matrix for every mesh
@@ -84,8 +85,12 @@ struct AnimGLData
 	float m_Time;
 	aiMatrix4x4 m_Camera;
 	
-	void addRenderer(AnimRenderer* renderer);
-	void removeRenderer();
+	//add renderer to model with index 'modelIndex'. Returns 'modelIndex'
+	int addRenderer(AnimRenderer* renderer, int modelIndex);
+	//add renderer to mode with name 'modelName'. Returns index of model
+	int addRenderer(AnimRenderer* renderer, const std::string modelName);
+	//Removes renderer attached to model with index 'modelIndex'
+	void removeRenderer(int modelIndex);
 	void stepAnimation(float t); //step one frame forwards
 	void render(float t);
 	void setCamera(const aiMatrix4x4& camera);
@@ -130,6 +135,7 @@ struct Scene
 	const aiScene* getScene() const;
 	const aiAnimation* getAnimation(const std::string& name) const;
 	const MeshGLData* getMeshGLData(int idx) const;
+    size_t getMeshCount(){ return m_MeshData.size(); }
 	AnimGLData* createAnimation(const std::string& name, const aiMatrix4x4& camera);
 	AnimGLData* createAnimation(unsigned int anim, const aiMatrix4x4& camera);
 private:

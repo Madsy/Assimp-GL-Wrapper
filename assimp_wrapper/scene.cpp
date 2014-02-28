@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <stdexcept>
 #include "scene.h"
 #include "png_loader.h"
 #include "glstuff.h"
@@ -6,6 +7,11 @@
 Scene::Scene(const std::string& path)
 {
 	m_Scene = importScene(path);
+	if(!m_Scene){
+		std::runtime_error e("Couldn't load model file.");
+		throw e;
+	}
+	
 	initGLModelData();
 }
 Scene::~Scene()
@@ -206,53 +212,16 @@ void Scene::initGLBoneData(MeshGLData* gldata, int meshID)
 		const std::vector<float>& wa = weightArray[i];
 		assert(ba.size() <= Scene::MAXBONESPERVERTEX);
 		assert(wa.size() <= Scene::MAXBONESPERVERTEX);
-		
+		assert(ba.size() == wa.size());
 		int len = ba.size();
-		/* TODO: Fix this switch so it works with different scene
-		   limits */ 
-		switch(len){
-		case 1:
-			boneArrayFinal[idx + 0] = ba[0];
-			boneArrayFinal[idx + 1] = 0;
-			boneArrayFinal[idx + 2] = 0;
-			boneArrayFinal[idx + 3] = 0;
-			weightArrayFinal[idx + 0] = wa[0];
-			weightArrayFinal[idx + 1] = 0;
-			weightArrayFinal[idx + 2] = 0;
-			weightArrayFinal[idx + 3] = 0;
-			break;
-		case 2:
-			boneArrayFinal[idx + 0] = ba[0];
-			boneArrayFinal[idx + 1] = ba[1];
-			boneArrayFinal[idx + 2] = 0;
-			boneArrayFinal[idx + 3] = 0;
-			weightArrayFinal[idx + 0] = wa[0];
-			weightArrayFinal[idx + 1] = wa[1];
-			weightArrayFinal[idx + 2] = 0;
-			weightArrayFinal[idx + 3] = 0;
-			break;
-		case 3:
-			boneArrayFinal[idx + 0] = ba[0];
-			boneArrayFinal[idx + 1] = ba[1];
-			boneArrayFinal[idx + 2] = ba[2];
-			boneArrayFinal[idx + 3] = 0;
-			weightArrayFinal[idx + 0] = wa[0];
-			weightArrayFinal[idx + 1] = wa[1];
-			weightArrayFinal[idx + 2] = wa[2];
-			weightArrayFinal[idx + 3] = 0;
-			break;
-		case 4:
-			boneArrayFinal[idx + 0] = ba[0];
-			boneArrayFinal[idx + 1] = ba[1];
-			boneArrayFinal[idx + 2] = ba[2];
-			boneArrayFinal[idx + 3] = ba[3];
-			weightArrayFinal[idx + 0] = wa[0];
-			weightArrayFinal[idx + 1] = wa[1];
-			weightArrayFinal[idx + 2] = wa[2];
-			weightArrayFinal[idx + 3] = wa[3];
-			break;
-		default:
-			assert(false);
+		
+		for(int j = 0; j < Scene::MAXBONESPERVERTEX; ++j){
+			boneArrayFinal[idx + j] = 0;
+			weightArrayFinal[idx + j] = 0;
+		}
+		for(int j = 0; j < len; ++j){
+			boneArrayFinal[idx + j] = ba[j];
+			weightArrayFinal[idx + j] = wa[j];
 		}
 	}
 	gldata->boneIndices = createVBO(&boneArrayFinal[0], mesh->mNumVertices * 4);
@@ -264,7 +233,7 @@ AnimGLData* Scene::createAnimation(const std::string& name, const aiMatrix4x4& c
 	AnimGLData* animation = new AnimGLData;
 	animation->m_Scene = this;
 	animation->m_Animation = 0;
-	animation->m_Renderer = 0;
+	//animation->m_Renderer = 0;
 	animation->m_Bones.resize(m_Scene->mNumMeshes);
 	animation->m_ModelView.resize(m_Scene->mNumMeshes);
 	animation->m_Time = 0.0f;
@@ -279,6 +248,8 @@ AnimGLData* Scene::createAnimation(const std::string& name, const aiMatrix4x4& c
 			break;
 		}
 	}
+	if(!animation->m_Animation)
+		return 0;
 	assert(animation->m_Animation != 0);
 	
 
@@ -304,17 +275,14 @@ AnimGLData* Scene::createAnimation(unsigned int anim, const aiMatrix4x4& camera)
 	AnimGLData* animation = new AnimGLData;
 	animation->m_Scene = this;
 	animation->m_Animation = 0;
-	animation->m_Renderer = 0;
+	//animation->m_Renderer = 0;
 	animation->m_Bones.resize(m_Scene->mNumMeshes);
 	animation->m_ModelView.resize(m_Scene->mNumMeshes);
 	animation->m_Time = 0.0f;
 	animation->m_Camera = camera;
-	
-	
-
 	animation->m_Animation = m_Scene->mAnimations[anim];
+
 	assert(animation->m_Animation != 0);
-	
 
 	/* Resize bone array for each model properly */
 	for(int i = 0; i < m_Scene->mNumMeshes; ++i){
@@ -341,6 +309,7 @@ AnimRenderer::AnimRenderer() : m_Parent(0), m_Scene(0), m_CurrentMesh(-1) {
 
 }
 
+#if 0
 void AnimRenderer::drawObjectBegin(unsigned int shader, const std::string& objname)
 {
 	int i;
@@ -425,7 +394,49 @@ void AnimRenderer::drawAllObjects(unsigned int shader)
 	m_CurrentMesh = -1;
 }
 
-void AnimRenderer::draw()
+#endif
+
+void AnimRenderer::drawBegin(unsigned int shader, int idx)
+{
+	glUseProgram(shader);
+	const aiScene* sceneData = m_Scene->m_Scene;
+	m_CurrentMesh = idx;
+	const MeshGLData* meshData = m_Scene->getMeshGLData(m_CurrentMesh);
+	bindVAO(meshData->vao);
+	bindVBOFloat(shader, "sc_vertex",     meshData->vertices,   3);
+	bindVBOFloat(shader, "sc_normal",     meshData->normals,    3);
+	bindVBOFloat(shader, "sc_tangent",    meshData->tangents,   3);
+	bindVBOFloat(shader, "sc_bitangent",  meshData->bitangents, 3);
+	bindVBOFloat(shader, "sc_tcoord0",    meshData->tcoord0,    3);
+	bindVBOFloat(shader, "sc_tcoord1",    meshData->tcoord1,    3);
+	bindVBOFloat(shader, "sc_tcoord2",    meshData->tcoord2,    3);
+	bindVBOFloat(shader, "sc_tcoord3",    meshData->tcoord3,    3);
+	bindVBOUint( shader, "sc_index",      meshData->boneIndices,4);
+	bindVBOFloat(shader, "sc_weight",     meshData->weights,    4);
+
+	//Bone uniform array changes every frame
+	//so it's stored in struct AnimGLData, this AnimRenderer's parent
+	int numBones = m_Parent->m_Bones[m_CurrentMesh].size();
+	const std::vector<aiMatrix4x4>& bones = m_Parent->m_Bones[m_CurrentMesh];
+	bindUniformMatrix4Array(shader, "sc_bones", numBones, &bones[0]);
+	bindUniformMatrix4(shader, "sc_modelview", m_Parent->m_ModelView[m_CurrentMesh]);
+	bindUniformMatrix4(shader, "sc_camera", m_Parent->m_Camera);
+
+
+	const aiMatrix4x4& c = m_Parent->m_Camera;
+	
+	//Finally, bind the face indices
+	bindVBOIndices(shader, meshData->indices);
+	glDrawElements(GL_TRIANGLES, meshData->numElements, GL_UNSIGNED_INT, 0);
+}
+
+void AnimRenderer::drawEnd(int idx)
+{
+	const MeshGLData* meshData = m_Scene->getMeshGLData(idx);
+	glDrawElements(GL_TRIANGLES, meshData->numElements, GL_UNSIGNED_INT, 0);
+}
+
+void AnimRenderer::draw(int idx)
 {
 	//override this and use drawObjectBegin()/drawObjectEnd and drawAllObjects() as needed
 }
@@ -445,6 +456,7 @@ void AnimRenderer::setScene(const Scene* scene)
 /****************************************************************************************
  ********************************* AnimGLData** *****************************************
  ****************************************************************************************/
+/*
 void AnimGLData::addRenderer(AnimRenderer* renderer)
 {
 	renderer->setParent(this);
@@ -456,6 +468,40 @@ void AnimGLData::removeRenderer()
 {
 	m_Renderer = 0; //cleanup outside of this renderer
 }
+
+*/
+
+//add renderer to model with index 'modelIndex'. Returns 'modelIndex'
+int AnimGLData::addRenderer(AnimRenderer* renderer, int modelIndex)
+{
+	renderer->setParent(this);
+	renderer->setScene(m_Scene);
+	if(modelIndex < m_Renderer.size())
+		m_Renderer[modelIndex] = renderer;
+	return modelIndex;
+}
+//add renderer to mode with name 'modelName'. Returns index of model
+int AnimGLData::addRenderer(AnimRenderer* renderer, const std::string modelName)
+{
+	renderer->setParent(this);
+	renderer->setScene(m_Scene);
+	const aiScene* scene = m_Scene->m_Scene;
+	int idx = 0;
+	for(; idx < scene->mNumMeshes; ++idx){
+		std::string name = scene->mMeshes[idx]->mName.C_Str();
+		if(name == modelName) break;
+	}
+	if(idx >= scene->mNumMeshes) return -1;
+	m_Renderer[idx] = renderer;
+	return idx;
+}
+//Removes renderer attached to model with index 'modelIndex'
+void AnimGLData::removeRenderer(int modelIndex)
+{
+	m_Renderer[modelIndex] = 0;
+	//m_Renderer.erase(ModelIndex)
+}
+
 
 void AnimGLData::stepAnimation(float t) //step one frame forwards
 {
@@ -475,8 +521,8 @@ void AnimGLData::stepAnimation(float t) //step one frame forwards
 void AnimGLData::render(float t)
 {
 	stepAnimation(t);
-	if(m_Renderer)
-		m_Renderer->draw();
+	//if(m_Renderer)
+	//	m_Renderer->draw();
 }
 
 void AnimGLData::setCamera(const aiMatrix4x4& camera)
@@ -650,12 +696,6 @@ void AnimGLData::recursiveUpdate(aiNode* node, const aiMatrix4x4& parentMatrix)
 
 	aiMatrix4x4 globalMatrix = parentMatrix * localMatrix;
 
-	/* Global world transform for meshes in pose mode (no animation running) */
-	for(int i = 0; i < node->mNumMeshes; ++i)
-	{
-		m_ModelView[node->mMeshes[i]]  = globalMatrix;
-	}
-	
 	/* Look up node in NMBI lookup table. If it is a bone, update the
 	i'th bone in the j'th mesh. The "bone" we update is the 2D matrix
 	array used by OpenGL as uniforms. Each array in the 2D array
@@ -681,5 +721,12 @@ void AnimGLData::recursiveUpdate(aiNode* node, const aiMatrix4x4& parentMatrix)
 	}
 	for(int i = 0; i < node->mNumChildren; ++i)
 		recursiveUpdate(node->mChildren[i], globalMatrix);
+
+	for(int i = 0; i < node->mNumMeshes; ++i){
+        /* Global world transform for meshes in pose mode (no animation running) */
+		m_ModelView[node->mMeshes[i]]  = globalMatrix;
+		AnimRenderer* a = m_Renderer[node->mMeshes[i]];
+		if(a) a->draw(node->mMeshes[i]);
+	}	
 }
 

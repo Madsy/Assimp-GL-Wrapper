@@ -3,6 +3,7 @@
 #include <assimp/cimport.h>
 #include <assimp/scene.h> 
 #include <assimp/postprocess.h>
+#include <exception>
 #include <string>
 #include <vector>
 #include <map>
@@ -36,8 +37,8 @@ public:
 		glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
 		std::vector<unsigned int> texData;
 		unsigned int texWidth, texHeight;
-		if(!LoadImagePNG("data/checker.png", texData, texWidth, texHeight)){
-			printf("Couldn't load image checker.png.\n");
+		if(!LoadImagePNG("data/texture.png", texData, texWidth, texHeight)){
+			printf("Couldn't load image texture.png.\n");
 			texWidth = 256;
 			texHeight = 256;
 			texData.resize(texWidth * texHeight);
@@ -51,8 +52,9 @@ public:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 	}
 	
-	void draw()
+	void draw(int idx)
 	{
+		drawBegin(shader, idx);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_2D, texture);
@@ -60,7 +62,8 @@ public:
 		int loc = glGetUniformLocation(shader, "projection");
 		if(loc != -1)
 			glUniformMatrix4fv(loc, 1, GL_TRUE, projection.c_ptr());
-		drawAllObjects(shader);
+
+		drawEnd(idx);
 	}
 private:
 	GLuint shader;
@@ -100,7 +103,11 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
 
 int main(int argc, char* argv[])
 {
-#if 1	
+	if(argc < 2 || argc > 3){
+		printf("Usage: %s [COLLADA file] [Animation name]\n", argv[0]);
+		return 0;
+	}
+
 	if(!glfwInit()){
 		printf("Failed to initialize glfw\n");		
 		return 0;
@@ -125,35 +132,47 @@ int main(int argc, char* argv[])
 
 	//Scene scene("data/pandoras_box2.x");
 	//Scene scene("data/test.dae");
-	Scene scene("data/pandoras_box3.dae");
-	#if 1
-	aiVector3D trans(0.0f, 0.0f, -2.0f);
-	aiMatrix4x4 camera;
-	aiMatrix4x4::Translation(trans, camera);
-	//AnimGLData* animation = scene.createAnimation("ArmatureAction", camera);
-	AnimGLData* animation = scene.createAnimation(0, camera);
-	if(!animation){
-		printf("Couldn't find animation ArmatureAction.\n");
-		glfwDestroyWindow(window);
-		glfwTerminate();
-		return 0;
-	}
+	//Scene scene("data/pandoras_box3.dae");
+	std::string s(argv[1]);
+
+	try {
+		Scene scene(s);
+
+		std::string animName("");
+		if(argc == 3)
+			animName = std::string(argv[2]);
+
+		aiVector3D trans(0.0f, 0.0f, -2.0f);
+		aiMatrix4x4 camera;
+		aiMatrix4x4::Translation(trans, camera);
+		AnimGLData* animation = scene.createAnimation(animName, camera);
+		//AnimGLData* animation = scene.createAnimation(0, camera);
+		if(!animation){
+			printf("Couldn't find animation \"%s\".\n", animName.c_str());
+			glfwDestroyWindow(window);
+			glfwTerminate();
+			return 0;
+		}
 	
-	AnimRenderer* renderer = new SimpleRenderer;
-	animation->addRenderer(renderer);
-	#endif
+		AnimRenderer* renderer = new SimpleRenderer;
+		for(size_t i = 0; i < scene.getMeshCount(); ++i){
+			animation->addRenderer(renderer, i);
+		}
+		
 
-
-    while(!glfwWindowShouldClose(window)){
-		glfwPollEvents();
-		float t = glfwGetTime();
-		animation->render(t);
-		glfwSwapBuffers(window);
-		if(t*32.0f >= 190.0f)
-			glfwSetTime(0.0f);
+		while(!glfwWindowShouldClose(window)){
+			glfwPollEvents();
+			float t = glfwGetTime();
+			animation->render(t);
+			glfwSwapBuffers(window);
+			if(t*32.0f >= 190.0f)
+				glfwSetTime(0.0f);
+		}
+	} catch(std::exception& e){
+		printf("Couldn't load file \"%s\"\n", s.c_str());
 	}
-    glfwDestroyWindow(window);
+	glfwDestroyWindow(window);
 	glfwTerminate();
-#endif
+	
 	return 0;
 }
